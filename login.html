@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in · Sri Lakshmi Mart Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#7A263A">
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<link rel="stylesheet" href="css/base.css">
+<style>
+  .auth{ min-height:100vh; display:grid; place-items:center; padding:20px;
+    background:radial-gradient(120% 90% at 15% 0%, #FFFDF8 0%, transparent 55%),
+      linear-gradient(160deg, var(--background) 0%, #EFE5D6 100%); }
+  .auth-card{ width:min(400px,100%); background:var(--surface);
+    border:1px solid var(--border); border-radius:var(--r-lg);
+    box-shadow:var(--sh-2); padding:clamp(24px,4vw,34px); }
+  .auth-logo{ width:74px; height:74px; object-fit:contain; margin:0 auto 14px; display:block; }
+  .auth h1{ font-family:var(--font-display); font-size:1.18rem; text-align:center; }
+  .auth .sub{ text-align:center; font-size:.72rem; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--accent-ink); font-weight:600; margin-bottom:22px; }
+  .pw-wrap{ position:relative; }
+  .pw-wrap .icon-btn{ position:absolute; right:4px; top:50%; translate:0 -50%; }
+  .auth-err{ display:none; margin-bottom:12px; padding:10px 13px; border-radius:var(--r-sm);
+    background:var(--bad-tint); color:var(--bad); font-size:.82rem; }
+  .auth-err.show{ display:block; }
+  .auth-links{ display:flex; justify-content:space-between; margin-top:14px; font-size:.8rem; }
+  .auth-links button{ color:var(--primary); font-weight:600; }
+  .auth-note{ margin-top:20px; padding-top:16px; border-top:1px solid var(--border-soft);
+    font-size:.76rem; color:var(--muted-text); text-align:center; }
+</style>
+</head>
+<body>
+
+<main class="auth">
+  <div class="auth-card">
+    <img class="auth-logo" src="assets/logo-256.png" alt="Sri Lakshmi Mart">
+    <h1>Sri Lakshmi Mart</h1>
+    <p class="sub">Admin &amp; Business Management</p>
+
+    <div class="auth-err" id="err" role="alert"></div>
+
+    <div class="field">
+      <label for="email">Email</label>
+      <input id="email" class="inp" type="email" autocomplete="username" required>
+    </div>
+    <div class="field">
+      <label for="pw">Password</label>
+      <div class="pw-wrap">
+        <input id="pw" class="inp" type="password" autocomplete="current-password"
+               style="padding-right:44px">
+        <button class="icon-btn" id="pwToggle" type="button" aria-label="Show password">
+          <i class="bi bi-eye"></i></button>
+      </div>
+    </div>
+    <label class="check"><input type="checkbox" id="remember" checked> Keep me signed in</label>
+
+    <button class="btn btn-primary" id="signIn" style="width:100%;margin-top:8px">Sign in</button>
+
+    <div class="auth-links">
+      <button id="forgot" type="button">Forgot password?</button>
+      <span class="muted" id="mode">—</span>
+    </div>
+
+    <p class="auth-note" id="note"></p>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/demo-catalogue.js"></script>
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/core.js"></script>
+<script>
+(function () {
+  SB.init();
+  const $ = s => document.querySelector(s);
+  const err = m => { const e = $('#err'); e.textContent = m; e.classList.add('show'); };
+  const clear = () => $('#err').classList.remove('show');
+
+  $('#mode').textContent = SB.live() ? 'Supabase' : 'Demo mode';
+  $('#note').textContent = SB.live()
+    ? 'Only registered administrators can sign in.'
+    : 'Supabase is not configured, so any email opens a demo session. '
+      + 'Add your keys to js/config.js before going live.';
+
+  $('#pwToggle').addEventListener('click', () => {
+    const i = $('#pw');
+    const show = i.type === 'password';
+    i.type = show ? 'text' : 'password';
+    $('#pwToggle').innerHTML = `<i class="bi bi-eye${show ? '-slash' : ''}"></i>`;
+    $('#pwToggle').setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+  });
+
+  async function submit() {
+    clear();
+    const btn = $('#signIn');
+    btn.disabled = true; btn.textContent = 'Signing in…';
+    const r = await Auth.signIn($('#email').value.trim(), $('#pw').value);
+    btn.disabled = false; btn.textContent = 'Sign in';
+    if (!r.ok) return err(r.error || 'Could not sign in.');
+    location.href = 'index.html';
+  }
+
+  $('#signIn').addEventListener('click', submit);
+  ['email','pw'].forEach(id => $('#' + id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') submit();
+  }));
+
+  $('#forgot').addEventListener('click', async () => {
+    clear();
+    const email = $('#email').value.trim();
+    if (!email) return err('Enter your email address first.');
+    const r = await Auth.resetPassword(email);
+    if (!r.ok) return err(r.error);
+    UI.toast('Check your inbox for a reset link.');
+  });
+
+  // already signed in? go straight through
+  Auth.currentUser().then(u => { if (u) location.replace('index.html'); });
+})();
+</script>
+</body>
+</html>
